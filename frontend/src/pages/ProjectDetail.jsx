@@ -28,6 +28,20 @@ export default function ProjectDetail() {
   const done = project.tasks.filter((t) => t.status === "DONE").length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
+  // Ordena do menor para o maior: usa o número no início do título
+  // ("1. Tarefa", "2. Tarefa"...) quando existe; tarefas sem número
+  // vão pro final, ordenadas pela data de criação.
+  function taskSortKey(t) {
+    const m = /^(\d+)/.exec(t.titulo || "");
+    return m ? parseInt(m[1], 10) : Infinity;
+  }
+  const sortedTasks = [...project.tasks].sort((a, b) => {
+    const ka = taskSortKey(a);
+    const kb = taskSortKey(b);
+    if (ka !== kb) return ka - kb;
+    return new Date(a.createdAt) - new Date(b.createdAt);
+  });
+
   async function handleStatusChange(status) {
     await api.updateProject(id, { status });
     load();
@@ -102,7 +116,31 @@ export default function ProjectDetail() {
       <div className="card">
         <div className="sec-title">Tarefas</div>
 
-        {project.tasks.length === 0 ? (
+        <form onSubmit={handleAddTask} className="task-add-bar">
+          <input name="titulo" placeholder="Nova tarefa" required className="inp" style={{ flex: 2, minWidth: 160 }} />
+          <select name="responsavelId" className="select" style={{ flex: 1, minWidth: 140 }}>
+            <option value="">Sem responsável</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <select name="prioridade" defaultValue="MEDIA" className="select" style={{ maxWidth: 120 }}>
+            {Object.entries(PRIORITY).map(([value, { label }]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <input name="prazo" type="date" className="inp" style={{ maxWidth: 160 }} />
+          <button type="submit" className="btn pri">
+            Adicionar
+          </button>
+        </form>
+        <div style={{ fontSize: 11, color: "var(--text-tertiary)", margin: "8px 0 16px" }}>Clique numa tarefa da lista pra editar responsável, prazo, prioridade, status ou adicionar observações.</div>
+
+        {sortedTasks.length === 0 ? (
           <div className="empty-state">Nenhuma tarefa ainda.</div>
         ) : (
           <table className="itm-table">
@@ -115,7 +153,7 @@ export default function ProjectDetail() {
               </tr>
             </thead>
             <tbody>
-              {project.tasks.map((t) => (
+              {sortedTasks.map((t) => (
                 <tr key={t.id} className="clickable" onClick={() => setOpenTask(t)}>
                   <td style={{ fontWeight: 600 }}>{t.titulo}</td>
                   <td>
@@ -145,30 +183,6 @@ export default function ProjectDetail() {
             </tbody>
           </table>
         )}
-
-        <form onSubmit={handleAddTask} style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-          <input name="titulo" placeholder="Nova tarefa" required className="inp" style={{ flex: 2, minWidth: 160 }} />
-          <select name="responsavelId" className="select" style={{ flex: 1, minWidth: 140 }}>
-            <option value="">Sem responsável</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <select name="prioridade" defaultValue="MEDIA" className="select" style={{ maxWidth: 120 }}>
-            {Object.entries(PRIORITY).map(([value, { label }]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <input name="prazo" type="date" className="inp" style={{ maxWidth: 160 }} />
-          <button type="submit" className="btn pri">
-            Adicionar
-          </button>
-        </form>
-        <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>Clique numa tarefa da lista pra editar responsável, prazo, prioridade, status ou adicionar observações.</div>
       </div>
 
       {openTask && (
