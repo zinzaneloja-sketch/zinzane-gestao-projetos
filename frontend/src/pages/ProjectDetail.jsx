@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import { PROJECT_STATUS, TASK_STATUS, PRIORITY, colorFor, initials, formatDate, isOverdue } from "../lib/ui";
+import TaskModal from "../components/TaskModal";
 
 export default function ProjectDetail() {
   const { id } = useParams();
+  const { user, currentDepartment } = useAuth();
   const [project, setProject] = useState(null);
   const [members, setMembers] = useState([]);
+  const [openTask, setOpenTask] = useState(null);
+
+  const canManage = user?.isAdmin || currentDepartment?.role === "GESTOR";
 
   function load() {
     api.getProject(id).then((p) => {
@@ -42,8 +48,13 @@ export default function ProjectDetail() {
     load();
   }
 
-  async function handleTaskStatus(taskId, status) {
-    await api.updateTaskStatus(taskId, status);
+  function handleTaskSaved() {
+    setOpenTask(null);
+    load();
+  }
+
+  function handleTaskDeleted() {
+    setOpenTask(null);
     load();
   }
 
@@ -63,13 +74,13 @@ export default function ProjectDetail() {
               )}
             </div>
             <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-.3px" }}>{project.titulo}</h1>
-            {project.descricao && <p style={{ color: "#86868b", fontSize: 13, marginTop: 6, maxWidth: 520 }}>{project.descricao}</p>}
-            <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: "#86868b" }}>
+            {project.descricao && <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 6, maxWidth: 520 }}>{project.descricao}</p>}
+            <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: "var(--text-secondary)" }}>
               <span>Responsável: {project.responsavel?.name || "—"}</span>
               {project.prazo && <span>Prazo: {formatDate(project.prazo)}</span>}
             </div>
           </div>
-          <select value={project.status} onChange={(e) => handleStatusChange(e.target.value)}>
+          <select className="select pill" value={project.status} onChange={(e) => handleStatusChange(e.target.value)}>
             {Object.entries(PROJECT_STATUS).map(([value, { label }]) => (
               <option key={value} value={value}>
                 {label}
@@ -105,7 +116,7 @@ export default function ProjectDetail() {
             </thead>
             <tbody>
               {project.tasks.map((t) => (
-                <tr key={t.id}>
+                <tr key={t.id} className="clickable" onClick={() => setOpenTask(t)}>
                   <td style={{ fontWeight: 600 }}>{t.titulo}</td>
                   <td>
                     {t.responsavel ? (
@@ -127,13 +138,7 @@ export default function ProjectDetail() {
                     )}
                   </td>
                   <td>
-                    <select value={t.status} onChange={(e) => handleTaskStatus(t.id, e.target.value)}>
-                      {Object.entries(TASK_STATUS).map(([value, { label }]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    <span className={`badge ${TASK_STATUS[t.status]?.badge || ""}`}>{TASK_STATUS[t.status]?.label || t.status}</span>
                   </td>
                 </tr>
               ))}
@@ -143,7 +148,7 @@ export default function ProjectDetail() {
 
         <form onSubmit={handleAddTask} style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
           <input name="titulo" placeholder="Nova tarefa" required className="inp" style={{ flex: 2, minWidth: 160 }} />
-          <select name="responsavelId" className="inp" style={{ flex: 1, minWidth: 140 }}>
+          <select name="responsavelId" className="select" style={{ flex: 1, minWidth: 140 }}>
             <option value="">Sem responsável</option>
             {members.map((m) => (
               <option key={m.id} value={m.id}>
@@ -151,7 +156,7 @@ export default function ProjectDetail() {
               </option>
             ))}
           </select>
-          <select name="prioridade" defaultValue="MEDIA" className="inp" style={{ maxWidth: 120 }}>
+          <select name="prioridade" defaultValue="MEDIA" className="select" style={{ maxWidth: 120 }}>
             {Object.entries(PRIORITY).map(([value, { label }]) => (
               <option key={value} value={value}>
                 {label}
@@ -163,7 +168,19 @@ export default function ProjectDetail() {
             Adicionar
           </button>
         </form>
+        <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>Clique numa tarefa da lista pra editar responsável, prazo, prioridade, status ou adicionar observações.</div>
       </div>
+
+      {openTask && (
+        <TaskModal
+          task={openTask}
+          members={members}
+          canDelete={canManage}
+          onClose={() => setOpenTask(null)}
+          onSaved={handleTaskSaved}
+          onDeleted={handleTaskDeleted}
+        />
+      )}
     </div>
   );
 }

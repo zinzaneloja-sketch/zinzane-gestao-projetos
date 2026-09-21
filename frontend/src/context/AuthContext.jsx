@@ -20,14 +20,16 @@ export function AuthProvider({ children }) {
     });
   }
 
+  function refreshUser() {
+    return api.me().then((res) => applyUser(res.user));
+  }
+
   useEffect(() => {
     if (!hasToken()) {
       setLoading(false);
       return;
     }
-    api
-      .me()
-      .then((res) => applyUser(res.user))
+    refreshUser()
       .catch(() => setToken(null))
       .finally(() => setLoading(false));
   }, []);
@@ -54,7 +56,7 @@ export function AuthProvider({ children }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, departmentId, setDepartmentId, currentDepartment }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, departmentId, setDepartmentId, currentDepartment, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

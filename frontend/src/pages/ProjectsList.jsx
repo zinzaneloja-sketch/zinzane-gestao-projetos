@@ -102,7 +102,7 @@ export default function ProjectsList() {
       </div>
 
       <div className="filter-row">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className="select pill" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">Todos os status</option>
           {Object.entries(PROJECT_STATUS).map(([value, { label }]) => (
             <option key={value} value={value}>

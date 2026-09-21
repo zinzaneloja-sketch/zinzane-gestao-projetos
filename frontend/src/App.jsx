@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import ProjectsList from "./pages/ProjectsList";
 import ProjectDetail from "./pages/ProjectDetail";
 import TasksKanban from "./pages/TasksKanban";
+import Team from "./pages/Team";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -27,6 +29,7 @@ function AppRoutes() {
         <Route path="/projetos" element={<ProjectsList />} />
         <Route path="/projetos/:id" element={<ProjectDetail />} />
         <Route path="/tarefas" element={<TasksKanban />} />
+        <Route path="/equipe" element={<Team />} />
         <Route path="/" element={<Navigate to="/projetos" replace />} />
       </Route>
     </Routes>
@@ -35,8 +38,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

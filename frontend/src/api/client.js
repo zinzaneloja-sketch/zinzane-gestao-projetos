@@ -46,9 +46,19 @@ export const api = {
 
   listTasks: (params = {}) => request(`/tasks${qs(params)}`),
   createTask: (data) => request("/tasks", { method: "POST", body: data }),
+  updateTask: (id, data) => request(`/tasks/${id}`, { method: "PATCH", body: data }),
   updateTaskStatus: (id, status) => request(`/tasks/${id}/status`, { method: "PATCH", body: { status } }),
+  deleteTask: (id) => request(`/tasks/${id}`, { method: "DELETE" }),
 
   listUsers: (departmentId) => request(`/users${qs({ departmentId })}`),
+  createUser: (data) => request("/users", { method: "POST", body: data }),
+
+  createDepartment: (data) => request("/departments", { method: "POST", body: data }),
+  listDepartmentMembers: (departmentId) => request(`/departments/${departmentId}/members`),
+  setDepartmentMember: (departmentId, userId, role) =>
+    request(`/departments/${departmentId}/members/${userId}`, { method: "PUT", body: { role } }),
+  removeDepartmentMember: (departmentId, userId) =>
+    request(`/departments/${departmentId}/members/${userId}`, { method: "DELETE" }),
 };
 
 export function setToken(token) {

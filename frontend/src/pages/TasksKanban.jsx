@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { colorFor, initials, formatDate, isOverdue } from "../lib/ui";
+import TaskModal from "../components/TaskModal";
 
 const COLUMNS = [
   { id: "TODO", label: "A fazer", colClass: "col-a-fazer" },
@@ -12,14 +13,19 @@ const COLUMNS = [
 ];
 
 export default function TasksKanban() {
-  const { departmentId, currentDepartment } = useAuth();
+  const { departmentId, currentDepartment, user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState([]);
   const [dragId, setDragId] = useState(null);
   const [overCol, setOverCol] = useState(null);
+  const [openTask, setOpenTask] = useState(null);
+
+  const canManage = user?.isAdmin || currentDepartment?.role === "GESTOR";
 
   function load() {
     if (!departmentId) return;
     api.listTasks({ departmentId }).then(setTasks);
+    api.listUsers(departmentId).then(setMembers);
   }
   useEffect(load, [departmentId]);
 
@@ -30,6 +36,16 @@ export default function TasksKanban() {
     } catch (e) {
       alert(e.message);
     }
+  }
+
+  function handleSaved() {
+    setOpenTask(null);
+    load();
+  }
+
+  function handleDeleted() {
+    setOpenTask(null);
+    load();
   }
 
   if (!departmentId) {
@@ -75,6 +91,7 @@ export default function TasksKanban() {
                     draggable
                     onDragStart={() => setDragId(t.id)}
                     onDragEnd={() => setDragId(null)}
+                    onClick={() => setOpenTask(t)}
                   >
                     {t.project && <div className="kcard-project">{t.project.titulo}</div>}
                     <div className="kcard-title">{t.titulo}</div>
@@ -97,6 +114,17 @@ export default function TasksKanban() {
           );
         })}
       </div>
+
+      {openTask && (
+        <TaskModal
+          task={openTask}
+          members={members}
+          canDelete={canManage}
+          onClose={() => setOpenTask(null)}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+        />
+      )}
     </div>
   );
 }
