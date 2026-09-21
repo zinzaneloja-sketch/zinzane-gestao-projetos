@@ -16,6 +16,7 @@ export default function Layout() {
 
   const isTasks = location.pathname.startsWith("/tarefas");
   const isTeam = location.pathname.startsWith("/equipe");
+  const isDesempenho = location.pathname.startsWith("/desempenho");
 
   return (
     <div className="app">
@@ -42,7 +43,7 @@ export default function Layout() {
             </select>
           )}
 
-          <Link to="/projetos" className={`nav-pill ${!isTasks && !isTeam ? "active-proj" : ""}`}>
+          <Link to="/projetos" className={`nav-pill ${!isTasks && !isTeam && !isDesempenho ? "active-proj" : ""}`}>
             Projetos
           </Link>
           <Link to="/tarefas" className={`nav-pill ${isTasks ? "active-time" : ""}`}>
@@ -50,6 +51,9 @@ export default function Layout() {
           </Link>
           <Link to="/equipe" className={`nav-pill ${isTeam ? "active-team" : ""}`}>
             Equipe
+          </Link>
+          <Link to="/desempenho" className={`nav-pill ${isDesempenho ? "active-perf" : ""}`}>
+            Desempenho
           </Link>
         </div>
         <div className="topbar-right">

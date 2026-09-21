@@ -15,10 +15,10 @@ export default function ProjectDetail() {
   const canManage = user?.isAdmin || currentDepartment?.role === "GESTOR";
 
   function load() {
-    api.getProject(id).then((p) => {
-      setProject(p);
-      api.listUsers(p.departmentId).then(setMembers);
-    });
+    api.getProject(id).then(setProject);
+    // Lista da empresa toda (não só o departamento do projeto) — uma
+    // tarefa pode ter responsáveis de departamentos diferentes.
+    api.listUsers().then(setMembers);
   }
   useEffect(load, [id]);
 
@@ -50,11 +50,12 @@ export default function ProjectDetail() {
   async function handleAddTask(e) {
     e.preventDefault();
     const form = new FormData(e.target);
+    const responsavelId = form.get("responsavelId");
     await api.createTask({
       departmentId: project.departmentId,
       projectId: id,
       titulo: form.get("titulo"),
-      responsavelId: form.get("responsavelId") || null,
+      responsavelIds: responsavelId ? [responsavelId] : [],
       prazo: form.get("prazo") || null,
       prioridade: form.get("prioridade"),
     });
@@ -126,6 +127,7 @@ export default function ProjectDetail() {
               </option>
             ))}
           </select>
+          {/* Pra atribuir mais de uma pessoa, adicione a tarefa e edite-a na lista abaixo. */}
           <select name="prioridade" defaultValue="MEDIA" className="select" style={{ maxWidth: 120 }}>
             {Object.entries(PRIORITY).map(([value, { label }]) => (
               <option key={value} value={value}>
@@ -157,12 +159,20 @@ export default function ProjectDetail() {
                 <tr key={t.id} className="clickable" onClick={() => setOpenTask(t)}>
                   <td style={{ fontWeight: 600 }}>{t.titulo}</td>
                   <td>
-                    {t.responsavel ? (
+                    {t.assignees && t.assignees.length > 0 ? (
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <span className="kcard-av" style={{ background: colorFor(t.responsavel.id) }}>
-                          {initials(t.responsavel.name)}
+                        <span className="avatar-stack">
+                          {t.assignees.slice(0, 3).map((a) => (
+                            <span key={a.userId} className="kcard-av" style={{ background: colorFor(a.userId) }} title={a.user.name}>
+                              {initials(a.user.name)}
+                            </span>
+                          ))}
                         </span>
-                        {t.responsavel.name}
+                        {t.assignees.length === 1
+                          ? t.assignees[0].user.name
+                          : t.assignees.length > 3
+                          ? `${t.assignees.length} pessoas`
+                          : t.assignees.map((a) => a.user.name).join(", ")}
                       </span>
                     ) : (
                       "—"

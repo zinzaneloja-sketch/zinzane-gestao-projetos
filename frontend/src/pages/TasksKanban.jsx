@@ -25,7 +25,9 @@ export default function TasksKanban() {
   function load() {
     if (!departmentId) return;
     api.listTasks({ departmentId }).then(setTasks);
-    api.listUsers(departmentId).then(setMembers);
+    // Lista da empresa toda — uma tarefa pode ter responsáveis de
+    // departamentos diferentes do departamento atual.
+    api.listUsers().then(setMembers);
   }
   useEffect(load, [departmentId]);
 
@@ -96,9 +98,18 @@ export default function TasksKanban() {
                     {t.project && <div className="kcard-project">{t.project.titulo}</div>}
                     <div className="kcard-title">{t.titulo}</div>
                     <div className="kcard-meta">
-                      {t.responsavel && (
-                        <span className="kcard-av" style={{ background: colorFor(t.responsavel.id) }} title={t.responsavel.name}>
-                          {initials(t.responsavel.name)}
+                      {t.assignees && t.assignees.length > 0 && (
+                        <span className="avatar-stack">
+                          {t.assignees.slice(0, 3).map((a) => (
+                            <span key={a.userId} className="kcard-av" style={{ background: colorFor(a.userId) }} title={a.user.name}>
+                              {initials(a.user.name)}
+                            </span>
+                          ))}
+                          {t.assignees.length > 3 && (
+                            <span className="kcard-av" style={{ background: "var(--surface-muted-strong)", color: "var(--text-secondary)" }}>
+                              +{t.assignees.length - 3}
+                            </span>
+                          )}
                         </span>
                       )}
                       {t.prazo && (

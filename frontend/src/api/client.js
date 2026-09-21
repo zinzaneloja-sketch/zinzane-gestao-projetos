@@ -53,6 +53,8 @@ export const api = {
   listUsers: (departmentId) => request(`/users${qs({ departmentId })}`),
   createUser: (data) => request("/users", { method: "POST", body: data }),
 
+  getDesempenho: (params = {}) => request(`/dashboard/desempenho${qs(params)}`),
+
   createDepartment: (data) => request("/departments", { method: "POST", body: data }),
   listDepartmentMembers: (departmentId) => request(`/departments/${departmentId}/members`),
   setDepartmentMember: (departmentId, userId, role) =>

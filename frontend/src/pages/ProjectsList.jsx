@@ -4,20 +4,25 @@ import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { PROJECT_STATUS, PRIORITY, colorFor, formatDate } from "../lib/ui";
 
+const SCOPE_KEY = "zinzane_home_scope";
+
 export default function ProjectsList() {
-  const { departmentId, currentDepartment } = useAuth();
+  const { user, departmentId, currentDepartment } = useAuth();
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [scope, setScope] = useState(() => localStorage.getItem(SCOPE_KEY) || "dept");
 
   const isGestor = currentDepartment?.role === "GESTOR";
+  const allDepartments = scope === "all";
 
   function load() {
     if (!departmentId) return;
     setLoading(true);
-    Promise.all([api.listProjects({ departmentId }), api.listTasks({ departmentId })])
+    const params = allDepartments ? {} : { departmentId };
+    Promise.all([api.listProjects(params), api.listTasks(params)])
       .then(([p, t]) => {
         setProjects(p);
         setTasks(t);
@@ -25,7 +30,11 @@ export default function ProjectsList() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [departmentId]);
+  useEffect(load, [departmentId, allDepartments]);
+
+  useEffect(() => {
+    localStorage.setItem(SCOPE_KEY, scope);
+  }, [scope]);
 
   const progressByProject = useMemo(() => {
     const map = {};
@@ -69,13 +78,19 @@ export default function ProjectsList() {
       <div className="header-bar">
         <div>
           <h1>Projetos</h1>
-          <div className="sub">{currentDepartment?.nome}</div>
+          <div className="sub">{allDepartments ? "Todos os departamentos" : currentDepartment?.nome}</div>
         </div>
-        {isGestor && (
-          <button className="btn pri" onClick={() => setShowForm(true)}>
-            + Novo projeto
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select className="select pill" value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="dept">Ver: {currentDepartment?.nome || "meu departamento"}</option>
+            <option value="all">Ver: {user?.isAdmin ? "Toda a empresa" : "Todos os meus departamentos"}</option>
+          </select>
+          {isGestor && (
+            <button className="btn pri" onClick={() => setShowForm(true)}>
+              + Novo projeto
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid4" style={{ marginBottom: "1.5rem" }}>
@@ -115,7 +130,7 @@ export default function ProjectsList() {
       {loading ? (
         <div className="empty-state">Carregando...</div>
       ) : filtered.length === 0 ? (
-        <div className="empty-state">Nenhum projeto neste departamento ainda.</div>
+        <div className="empty-state">{allDepartments ? "Nenhum projeto na empresa ainda." : "Nenhum projeto neste departamento ainda."}</div>
       ) : (
         <div className="pgrid">
           {filtered.map((p) => {
@@ -131,6 +146,12 @@ export default function ProjectsList() {
                   <span className="adot" style={{ background: colorFor(p.id) }} />
                   <span className="astage">{statusInfo.label}</span>
                   {priorityInfo.label && <span className={`badge ${priorityInfo.badge}`}>{priorityInfo.label}</span>}
+                  {allDepartments && p.department && (
+                    <span className="dept-chip">
+                      <span className="dept-chip-dot" style={{ background: p.department.cor || colorFor(p.department.id) }} />
+                      {p.department.nome}
+                    </span>
+                  )}
                 </div>
                 <div className="acard-title">{p.titulo}</div>
                 <div className="acard-meta">

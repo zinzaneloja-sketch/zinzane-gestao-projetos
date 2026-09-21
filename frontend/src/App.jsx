@@ -7,6 +7,7 @@ import ProjectsList from "./pages/ProjectsList";
 import ProjectDetail from "./pages/ProjectDetail";
 import TasksKanban from "./pages/TasksKanban";
 import Team from "./pages/Team";
+import Desempenho from "./pages/Desempenho";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -30,6 +31,7 @@ function AppRoutes() {
         <Route path="/projetos/:id" element={<ProjectDetail />} />
         <Route path="/tarefas" element={<TasksKanban />} />
         <Route path="/equipe" element={<Team />} />
+        <Route path="/desempenho" element={<Desempenho />} />
         <Route path="/" element={<Navigate to="/projetos" replace />} />
       </Route>
     </Routes>

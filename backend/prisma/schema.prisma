@@ -66,6 +66,7 @@ model User {
   departments     UserDepartment[]
   responsibleFor  Project[]        @relation("ProjectResponsible")
   tasksAssigned   Task[]           @relation("TaskResponsible")
+  taskAssignments TaskAssignee[]
   salaries        Salary[]
 
   @@map("users")
@@ -113,8 +114,12 @@ model Task {
   project       Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   titulo        String
   descricao     String?
+  // Legado — mantido só por compatibilidade com dados antigos, não é mais
+  // escrito/lido pela aplicação. Uma tarefa agora pode ter vários
+  // responsáveis (inclusive de departamentos diferentes) via `assignees`.
   responsavelId String?
   responsavel   User?      @relation("TaskResponsible", fields: [responsavelId], references: [id])
+  assignees     TaskAssignee[]
   prioridade    Priority   @default(MEDIA)
   status        TaskStatus @default(TODO)
   prazo         DateTime?
@@ -126,6 +131,21 @@ model Task {
   timeEntries TaskTimeEntry[]
 
   @@map("tasks")
+}
+
+// Vincula uma ou mais pessoas como responsáveis por uma tarefa. Permite que
+// uma tarefa seja compartilhada entre pessoas de departamentos diferentes
+// (a pessoa não precisa ser membro do departamento da tarefa pra ser
+// responsável por ela).
+model TaskAssignee {
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([taskId, userId])
+  @@map("task_assignees")
 }
 
 model TaskTimeEntry {

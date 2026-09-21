@@ -42,7 +42,10 @@ router.get("/:id", async (req, res) => {
     include: {
       responsavel: { select: { id: true, name: true } },
       department: true,
-      tasks: { include: { responsavel: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } },
+      tasks: {
+        include: { assignees: { include: { user: { select: { id: true, name: true, color: true, cargo: true } } } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!project) return res.status(404).json({ error: "Projeto não encontrado." });

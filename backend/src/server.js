@@ -8,6 +8,7 @@ const taskRoutes = require("./routes/tasks");
 const departmentRoutes = require("./routes/departments");
 const userRoutes = require("./routes/users");
 const aiRoutes = require("./routes/ai");
+const dashboardRoutes = require("./routes/dashboard");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Handler de erro genérico — evita vazar stack trace em produção
 app.use((err, _req, res, _next) => {
