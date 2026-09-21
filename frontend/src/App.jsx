@@ -4,7 +4,7 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import ProjectsList from "./pages/ProjectsList";
 import ProjectDetail from "./pages/ProjectDetail";
-import TeamKanban from "./pages/TeamKanban";
+import TasksKanban from "./pages/TasksKanban";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -26,7 +26,7 @@ function AppRoutes() {
       >
         <Route path="/projetos" element={<ProjectsList />} />
         <Route path="/projetos/:id" element={<ProjectDetail />} />
-        <Route path="/time" element={<TeamKanban />} />
+        <Route path="/tarefas" element={<TasksKanban />} />
         <Route path="/" element={<Navigate to="/projetos" replace />} />
       </Route>
     </Routes>

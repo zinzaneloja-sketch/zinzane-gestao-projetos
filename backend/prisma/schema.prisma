@@ -1,6 +1,8 @@
-// Schema de dados — Sistema de Gestão de Projetos Zinzane
-// Traduz o modelo do sistema original (Moveridei, Firestore/blob único)
-// para tabelas relacionais no Postgres.
+// Schema de dados — Sistema de Controle de Projetos e Tarefas Zinzane
+//
+// Cada projeto e cada tarefa pertence a um Departamento (workspace).
+// O acesso é controlado por UserDepartment: uma pessoa só enxerga os
+// departamentos aos quais está vinculada, exceto administradores.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,15 +13,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  GERENTE
-  OPERADOR
-}
-
-enum ProjectType {
-  POC
-  PROJETO_FINAL
+enum DepartmentRole {
+  MEMBRO
+  GESTOR
 }
 
 enum Priority {
@@ -28,30 +24,11 @@ enum Priority {
   BAIXA
 }
 
-enum StageStatus {
-  PENDENTE
+enum ProjectStatus {
+  NAO_INICIADO
   EM_ANDAMENTO
   CONCLUIDO
   BLOQUEADO
-}
-
-enum Macro {
-  PREPARACAO
-  AQUISICAO
-  EXECUCAO
-  ENCERRAMENTO
-}
-
-enum StageName {
-  PLANEJAMENTO
-  ESPECIFICACAO
-  COMPRA
-  RECEBIMENTO
-  TAREFAS
-  INTEGRACAO
-  TESTES
-  DOCUMENTACAO
-  ENTREGA
 }
 
 enum TaskStatus {
@@ -62,10 +39,18 @@ enum TaskStatus {
   BLOCKED
 }
 
-enum CycleStatus {
-  PLANEJADA
-  EM_ANDAMENTO
-  CONCLUIDA
+model Department {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  slug      String   @unique
+  cor       String?
+  createdAt DateTime @default(now())
+
+  members  UserDepartment[]
+  projects Project[]
+  tasks    Task[]
+
+  @@map("departments")
 }
 
 model User {
@@ -73,148 +58,57 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
-  role         Role     @default(OPERADOR)
   isAdmin      Boolean  @default(false)
+  cargo        String?
   color        String?
   createdAt    DateTime @default(now())
 
-  teamMember      TeamMember?      @relation
+  departments     UserDepartment[]
   responsibleFor  Project[]        @relation("ProjectResponsible")
   tasksAssigned   Task[]           @relation("TaskResponsible")
+  salaries        Salary[]
 
   @@map("users")
 }
 
-model TeamMember {
-  id             String   @id @default(uuid())
-  userId         String?  @unique
-  user           User?    @relation(fields: [userId], references: [id])
-  nome           String
-  cargo          String?
-  email          String?
-  color          String?
-  disponibilidade Int     @default(100)
-  obs            String?
-  createdAt      DateTime @default(now())
+// Vincula uma pessoa a um departamento (workspace) com um papel.
+// Isso é o que decide o que cada pessoa enxerga no sistema.
+model UserDepartment {
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department     @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  role         DepartmentRole @default(MEMBRO)
+  createdAt    DateTime       @default(now())
 
-  salaries Salary[]
-
-  @@map("team_members")
-}
-
-model Salary {
-  id           String     @id @default(uuid())
-  teamMemberId String
-  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
-  valor        Decimal    @db.Decimal(12, 2)
-  vigenciaInicio DateTime
-  vigenciaFim    DateTime?
-  createdAt    DateTime   @default(now())
-
-  @@map("salaries")
+  @@id([userId, departmentId])
+  @@map("user_departments")
 }
 
 model Project {
-  id              String      @id @default(uuid())
-  titulo          String
-  descricao       String?
-  responsavelId   String?
-  responsavel     User?       @relation("ProjectResponsible", fields: [responsavelId], references: [id])
-  prioridade      Priority    @default(MEDIA)
-  tipo            ProjectType @default(POC)
-  continuo        Boolean     @default(false)
-  prazo           DateTime?
-  orcamentoTotal  Decimal?    @db.Decimal(12, 2)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String        @id @default(uuid())
+  departmentId   String
+  department     Department    @relation(fields: [departmentId], references: [id])
+  titulo         String
+  descricao      String?
+  responsavelId  String?
+  responsavel    User?         @relation("ProjectResponsible", fields: [responsavelId], references: [id])
+  prioridade     Priority      @default(MEDIA)
+  status         ProjectStatus @default(NAO_INICIADO)
+  prazo          DateTime?
+  orcamentoTotal Decimal?      @db.Decimal(12, 2)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  stages   ProjectStage[]
-  cycles   ProjectCycle[]
-  supplies Supply[]
-  labor    Labor[]
-  tasks    Task[]
+  tasks Task[]
 
   @@map("projects")
 }
 
-model ProjectStage {
-  id        String      @id @default(uuid())
-  projectId String
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  macro     Macro
-  stage     StageName
-  status    StageStatus @default(PENDENTE)
-  updatedAt DateTime    @updatedAt
-
-  @@unique([projectId, stage])
-  @@map("project_stages")
-}
-
-model ProjectCycle {
-  id        String      @id @default(uuid())
-  projectId String
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  titulo    String
-  prazo     DateTime?
-  status    CycleStatus @default(PLANEJADA)
-  createdAt DateTime    @default(now())
-
-  checklist CycleChecklistItem[]
-  links     CycleLink[]
-
-  @@map("project_cycles")
-}
-
-model CycleChecklistItem {
-  id      String       @id @default(uuid())
-  cycleId String
-  cycle   ProjectCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  texto   String
-  done    Boolean      @default(false)
-
-  @@map("cycle_checklist_items")
-}
-
-model CycleLink {
-  id      String       @id @default(uuid())
-  cycleId String
-  cycle   ProjectCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  nome    String
-  url     String
-
-  @@map("cycle_links")
-}
-
-model Supply {
-  id             String    @id @default(uuid())
-  projectId      String
-  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  nome           String
-  quantidade     Int       @default(1)
-  unidade        String    @default("un")
-  fornecedor     String?
-  valorUnitario  Decimal   @default(0) @db.Decimal(12, 2)
-  previsaoEntrega DateTime?
-  obs            String?
-  createdAt      DateTime  @default(now())
-
-  @@map("supplies")
-}
-
-model Labor {
-  id          String   @id @default(uuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  descricao   String
-  custo       Decimal  @default(0) @db.Decimal(12, 2)
-  horas       Decimal? @db.Decimal(8, 2)
-  createdAt   DateTime @default(now())
-
-  @@map("labor")
-}
-
 model Task {
   id            String     @id @default(uuid())
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id])
   projectId     String?
   project       Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   titulo        String
@@ -225,7 +119,6 @@ model Task {
   status        TaskStatus @default(TODO)
   prazo         DateTime?
   tags          String[]   @default([])
-  origem        String     @default("time") // "time" | "projeto"
   concluidaEm   DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -244,4 +137,18 @@ model TaskTimeEntry {
   segundosAcumulados Int       @default(0)
 
   @@map("task_time_entries")
+}
+
+// Dado sensível — visível só para admins e para o Gestor do
+// Departamento Pessoal (regra aplicada na camada da API, não aqui).
+model Salary {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  valor          Decimal   @db.Decimal(12, 2)
+  vigenciaInicio DateTime
+  vigenciaFim    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@map("salaries")
 }

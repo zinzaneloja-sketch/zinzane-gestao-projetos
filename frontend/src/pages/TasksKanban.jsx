@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 const COLUMNS = [
   { id: "TODO", label: "A fazer" },
@@ -10,12 +11,14 @@ const COLUMNS = [
 ];
 
 export default function TeamKanban() {
+  const { departmentId, currentDepartment } = useAuth();
   const [tasks, setTasks] = useState([]);
 
   function load() {
-    api.listTasks().then(setTasks);
+    if (!departmentId) return;
+    api.listTasks({ departmentId }).then(setTasks);
   }
-  useEffect(load, []);
+  useEffect(load, [departmentId]);
 
   async function move(taskId, status) {
     try {
@@ -26,9 +29,13 @@ export default function TeamKanban() {
     }
   }
 
+  if (!departmentId) {
+    return <div style={{ padding: "2rem" }}>Você ainda não está vinculado a nenhum departamento.</div>;
+  }
+
   return (
     <div style={{ padding: "2rem" }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Kanban do time</h1>
+      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Tarefas · {currentDepartment?.nome}</h1>
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${COLUMNS.length}, 1fr)`, gap: 12 }}>
         {COLUMNS.map((col) => (
           <div key={col.id} style={{ background: "#f5f5f7", borderRadius: 12, padding: 12, minHeight: 300 }}>

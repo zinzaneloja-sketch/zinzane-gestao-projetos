@@ -26,29 +26,29 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
   return data;
 }
 
+function qs(params = {}) {
+  const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""));
+  const s = new URLSearchParams(clean).toString();
+  return s ? `?${s}` : "";
+}
+
 export const api = {
   login: (email, password) => request("/auth/login", { method: "POST", body: { email, password }, auth: false }),
   me: () => request("/auth/me"),
 
-  listProjects: () => request("/projects"),
+  listDepartments: () => request("/departments"),
+
+  listProjects: (params = {}) => request(`/projects${qs(params)}`),
   getProject: (id) => request(`/projects/${id}`),
   createProject: (data) => request("/projects", { method: "POST", body: data }),
   updateProject: (id, data) => request(`/projects/${id}`, { method: "PATCH", body: data }),
   deleteProject: (id) => request(`/projects/${id}`, { method: "DELETE" }),
-  updateStage: (projectId, stageId, status) =>
-    request(`/projects/${projectId}/stages/${stageId}`, { method: "PATCH", body: { status } }),
-  addSupply: (projectId, data) => request(`/projects/${projectId}/supplies`, { method: "POST", body: data }),
-  addLabor: (projectId, data) => request(`/projects/${projectId}/labor`, { method: "POST", body: data }),
 
-  listTasks: (params = {}) => {
-    const qs = new URLSearchParams(params).toString();
-    return request(`/tasks${qs ? `?${qs}` : ""}`);
-  },
+  listTasks: (params = {}) => request(`/tasks${qs(params)}`),
   createTask: (data) => request("/tasks", { method: "POST", body: data }),
   updateTaskStatus: (id, status) => request(`/tasks/${id}/status`, { method: "PATCH", body: { status } }),
 
-  listTeam: () => request("/team"),
-  createTeamMember: (data) => request("/team", { method: "POST", body: data }),
+  listUsers: (departmentId) => request(`/users${qs({ departmentId })}`),
 };
 
 export function setToken(token) {

@@ -1,13 +1,22 @@
-# Gestão de Projetos — Zinzane
+# Controle de Projetos e Tarefas — Zinzane
 
-Sistema de gestão de projetos e time da Zinzane, inspirado no sistema
-"Gestão de Projetos Moveridei", reconstruído com backend próprio,
-banco de dados relacional e deploy contínuo via GitHub + Railway.
+Sistema de controle de projetos e tarefas da Zinzane (varejo de moda),
+organizado por **departamentos** (workspaces com acesso restrito).
+Construído com backend próprio, banco de dados relacional e deploy
+contínuo via GitHub + Railway.
 
-Fluxo de projetos: **POC → Projeto Final**, com 4 macro-etapas
-(Preparação, Aquisição, Execução, Encerramento), controle de insumos e
-mão de obra por projeto, e um kanban de tarefas do time (A fazer, Em
-andamento, Em revisão, Concluído, Bloqueado).
+Cada projeto e cada tarefa pertence a um departamento. Cada pessoa é
+vinculada a um ou mais departamentos, com papel **Membro** ou
+**Gestor**, e só vê o que é desses departamentos — exceto
+administradores, que veem tudo. Departamentos iniciais: Compras,
+Estilo, Marketing, Jurídico, Financeiro, Contábil/Fiscal, Departamento
+Pessoal, Logística, E-commerce, Tecnologia, Expansão.
+
+Não há distinção entre "POC" e "Projeto Final", nem fases fixas: cada
+projeto tem um **status simples** (Não iniciado / Em andamento /
+Concluído / Bloqueado) e uma lista de tarefas com responsável e prazo.
+As tarefas também têm seu próprio kanban (A fazer, Em andamento, Em
+revisão, Concluído, Bloqueado).
 
 ## Stack
 
@@ -32,13 +41,14 @@ cd backend
 cp .env.example .env        # ajuste DATABASE_URL e JWT_SECRET
 npm install
 npm run prisma:migrate:dev  # cria as tabelas
-npm run prisma:seed         # cria o usuário admin inicial
+npm run prisma:seed         # cria os 11 departamentos + usuário admin
 npm run dev                 # sobe em http://localhost:4000
 ```
 
 Usuário criado pelo seed: `admin@zinzane.com` / senha em
 `SEED_ADMIN_PASSWORD` (defina essa variável antes de rodar o seed, ou
-troque a senha depois do primeiro login).
+troque a senha depois do primeiro login). Esse usuário entra como
+Gestor de todos os departamentos.
 
 ### 2. Frontend
 
@@ -85,20 +95,25 @@ repositório para cada um dos dois serviços.
 
 ## O que já está implementado
 
-- Autenticação (login + JWT), níveis de acesso (admin/operador).
-- CRUD de projetos com as 4 macro-etapas e controle de status por fase.
-- Insumos e mão de obra por projeto.
-- Kanban de tarefas do time, com a regra "só o responsável conclui a
-  própria tarefa" para operadores.
+- Autenticação (login + JWT).
+- Departamentos (workspaces) com vínculo de usuários por papel
+  (Membro/Gestor) e filtragem automática do que cada pessoa enxerga.
+- CRUD de projetos (status simples) e tarefas, escopados por
+  departamento — só o Gestor do departamento cria/edita projetos; uma
+  tarefa só pode ser movida pelo próprio responsável ou por um Gestor.
+- Kanban de tarefas por departamento.
 - Rota de importação via IA (`/api/ai/import`), chamando a API da
   Claude diretamente do backend (a chave não fica exposta ao navegador).
+- Cadastro de salários por pessoa, visível só para admins e para o
+  Gestor do Departamento Pessoal.
 
-## O que falta para paridade completa com o sistema original
+## O que falta
 
-- Projetos contínuos com ciclos de entrega (schema já existe: tabelas
-  `project_cycles`, `cycle_checklist_items`, `cycle_links`; falta a
-  API e a tela).
+- Tela de administração de departamentos e de vínculo de pessoas
+  (hoje só dá pra fazer via API — `PUT /api/departments/:id/members/:userId`).
 - Tela de desempenho por pessoa e arquivo de tarefas concluídas.
 - Exportação de tarefas em PDF e envio por e-mail.
-- Cadastro e histórico de salários (API já existe; falta a tela).
-- Dashboards/gráficos.
+- Tela de salários (a API já existe).
+- Dashboards/gráficos por departamento.
+- Um possível módulo de pedidos/fornecedores específico do
+  departamento de Compras (fora do núcleo genérico do sistema).
