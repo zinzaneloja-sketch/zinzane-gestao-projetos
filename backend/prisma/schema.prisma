@@ -1,0 +1,247 @@
+// Schema de dados — Sistema de Gestão de Projetos Zinzane
+// Traduz o modelo do sistema original (Moveridei, Firestore/blob único)
+// para tabelas relacionais no Postgres.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  GERENTE
+  OPERADOR
+}
+
+enum ProjectType {
+  POC
+  PROJETO_FINAL
+}
+
+enum Priority {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum StageStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+  BLOQUEADO
+}
+
+enum Macro {
+  PREPARACAO
+  AQUISICAO
+  EXECUCAO
+  ENCERRAMENTO
+}
+
+enum StageName {
+  PLANEJAMENTO
+  ESPECIFICACAO
+  COMPRA
+  RECEBIMENTO
+  TAREFAS
+  INTEGRACAO
+  TESTES
+  DOCUMENTACAO
+  ENTREGA
+}
+
+enum TaskStatus {
+  TODO
+  DOING
+  REVIEW
+  DONE
+  BLOCKED
+}
+
+enum CycleStatus {
+  PLANEJADA
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(OPERADOR)
+  isAdmin      Boolean  @default(false)
+  color        String?
+  createdAt    DateTime @default(now())
+
+  teamMember      TeamMember?      @relation
+  responsibleFor  Project[]        @relation("ProjectResponsible")
+  tasksAssigned   Task[]           @relation("TaskResponsible")
+
+  @@map("users")
+}
+
+model TeamMember {
+  id             String   @id @default(uuid())
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id])
+  nome           String
+  cargo          String?
+  email          String?
+  color          String?
+  disponibilidade Int     @default(100)
+  obs            String?
+  createdAt      DateTime @default(now())
+
+  salaries Salary[]
+
+  @@map("team_members")
+}
+
+model Salary {
+  id           String     @id @default(uuid())
+  teamMemberId String
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  valor        Decimal    @db.Decimal(12, 2)
+  vigenciaInicio DateTime
+  vigenciaFim    DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@map("salaries")
+}
+
+model Project {
+  id              String      @id @default(uuid())
+  titulo          String
+  descricao       String?
+  responsavelId   String?
+  responsavel     User?       @relation("ProjectResponsible", fields: [responsavelId], references: [id])
+  prioridade      Priority    @default(MEDIA)
+  tipo            ProjectType @default(POC)
+  continuo        Boolean     @default(false)
+  prazo           DateTime?
+  orcamentoTotal  Decimal?    @db.Decimal(12, 2)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  stages   ProjectStage[]
+  cycles   ProjectCycle[]
+  supplies Supply[]
+  labor    Labor[]
+  tasks    Task[]
+
+  @@map("projects")
+}
+
+model ProjectStage {
+  id        String      @id @default(uuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  macro     Macro
+  stage     StageName
+  status    StageStatus @default(PENDENTE)
+  updatedAt DateTime    @updatedAt
+
+  @@unique([projectId, stage])
+  @@map("project_stages")
+}
+
+model ProjectCycle {
+  id        String      @id @default(uuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  titulo    String
+  prazo     DateTime?
+  status    CycleStatus @default(PLANEJADA)
+  createdAt DateTime    @default(now())
+
+  checklist CycleChecklistItem[]
+  links     CycleLink[]
+
+  @@map("project_cycles")
+}
+
+model CycleChecklistItem {
+  id      String       @id @default(uuid())
+  cycleId String
+  cycle   ProjectCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  texto   String
+  done    Boolean      @default(false)
+
+  @@map("cycle_checklist_items")
+}
+
+model CycleLink {
+  id      String       @id @default(uuid())
+  cycleId String
+  cycle   ProjectCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  nome    String
+  url     String
+
+  @@map("cycle_links")
+}
+
+model Supply {
+  id             String    @id @default(uuid())
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nome           String
+  quantidade     Int       @default(1)
+  unidade        String    @default("un")
+  fornecedor     String?
+  valorUnitario  Decimal   @default(0) @db.Decimal(12, 2)
+  previsaoEntrega DateTime?
+  obs            String?
+  createdAt      DateTime  @default(now())
+
+  @@map("supplies")
+}
+
+model Labor {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  descricao   String
+  custo       Decimal  @default(0) @db.Decimal(12, 2)
+  horas       Decimal? @db.Decimal(8, 2)
+  createdAt   DateTime @default(now())
+
+  @@map("labor")
+}
+
+model Task {
+  id            String     @id @default(uuid())
+  projectId     String?
+  project       Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  titulo        String
+  descricao     String?
+  responsavelId String?
+  responsavel   User?      @relation("TaskResponsible", fields: [responsavelId], references: [id])
+  prioridade    Priority   @default(MEDIA)
+  status        TaskStatus @default(TODO)
+  prazo         DateTime?
+  tags          String[]   @default([])
+  origem        String     @default("time") // "time" | "projeto"
+  concluidaEm   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  timeEntries TaskTimeEntry[]
+
+  @@map("tasks")
+}
+
+model TaskTimeEntry {
+  id                 String    @id @default(uuid())
+  taskId             String
+  task               Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  inicio             DateTime
+  fim                DateTime?
+  segundosAcumulados Int       @default(0)
+
+  @@map("task_time_entries")
+}
