@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import { TASK_STATUS, PRIORITY, colorFor, initials } from "../lib/ui";
+import { useAuth } from "../context/AuthContext";
+import { TASK_STATUS, PRIORITY, colorFor, initials, formatBytes, formatDate } from "../lib/ui";
 
 // Modal de detalhe/edição de uma tarefa — abre ao clicar num card do kanban
 // ou numa linha da tabela de tarefas de um projeto. Usa PATCH /api/tasks/:id
@@ -11,6 +12,7 @@ import { TASK_STATUS, PRIORITY, colorFor, initials } from "../lib/ui";
 // diferentes — `members` é a lista de pessoas da empresa toda (não só do
 // departamento da tarefa), pra permitir isso.
 export default function TaskModal({ task, members, canDelete, onClose, onSaved, onDeleted }) {
+  const { user } = useAuth();
   const [titulo, setTitulo] = useState(task.titulo || "");
   const [descricao, setDescricao] = useState(task.descricao || "");
   const [assigneeIds, setAssigneeIds] = useState(
@@ -25,12 +27,54 @@ export default function TaskModal({ task, members, canDelete, onClose, onSaved, 
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
+  const [attachments, setAttachments] = useState([]);
+  const [attLoading, setAttLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [attError, setAttError] = useState("");
+
   const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const selected = assigneeIds.map((id) => membersById.get(id)).filter(Boolean);
   const filtered = members.filter((m) => m.name.toLowerCase().includes(busca.trim().toLowerCase()));
 
   function toggleAssignee(id) {
     setAssigneeIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  }
+
+  function loadAttachments() {
+    setAttLoading(true);
+    api
+      .listAttachments(task.id)
+      .then(setAttachments)
+      .catch((err) => setAttError(err.message))
+      .finally(() => setAttLoading(false));
+  }
+  useEffect(loadAttachments, [task.id]);
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    setAttError("");
+    try {
+      await api.uploadAttachment(task.id, file);
+      loadAttachments();
+    } catch (err) {
+      setAttError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteAttachment(id) {
+    if (!confirm("Excluir este anexo? Essa ação não pode ser desfeita.")) return;
+    setAttError("");
+    try {
+      await api.deleteAttachment(id);
+      setAttachments((cur) => cur.filter((a) => a.id !== id));
+    } catch (err) {
+      setAttError(err.message);
+    }
   }
 
   async function handleSave(e) {
@@ -184,6 +228,51 @@ export default function TaskModal({ task, members, canDelete, onClose, onSaved, 
           <div className="fg">
             <label className="inp-lbl">Tags (separadas por vírgula)</label>
             <input className="inp" value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="ex.: Marketing, Quick wins" />
+          </div>
+
+          <div className="fg">
+            <label className="inp-lbl">
+              Anexos {attachments.length > 0 && <span style={{ fontWeight: 400, color: "var(--text-tertiary)" }}>({attachments.length})</span>}
+            </label>
+
+            {attError && <div className="login-err" style={{ marginBottom: 8 }}>{attError}</div>}
+
+            <div className="attachment-list">
+              {attLoading ? (
+                <div style={{ fontSize: 12, color: "var(--text-tertiary)", padding: "8px 4px" }}>Carregando anexos...</div>
+              ) : attachments.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--text-tertiary)", padding: "8px 4px" }}>Nenhum arquivo anexado ainda.</div>
+              ) : (
+                attachments.map((a) => (
+                  <div key={a.id} className="attachment-row">
+                    <span className="attachment-icon">📎</span>
+                    <div className="attachment-info">
+                      <button
+                        type="button"
+                        className="attachment-name"
+                        onClick={() => api.downloadAttachment(a.id, a.filename).catch((err) => setAttError(err.message))}
+                        title={`Baixar ${a.filename}`}
+                      >
+                        {a.filename}
+                      </button>
+                      <div className="attachment-meta">
+                        {formatBytes(a.sizeBytes)} · {a.uploadedBy?.name || "Alguém"} · {formatDate(a.createdAt)}
+                      </div>
+                    </div>
+                    {(a.uploadedById === user?.id || canDelete) && (
+                      <button type="button" className="aic aic-del" title="Excluir anexo" onClick={() => handleDeleteAttachment(a.id)}>
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <label className="btn attachment-upload-btn" style={{ cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
+              {uploading ? "Enviando..." : "+ Anexar arquivo"}
+              <input type="file" style={{ display: "none" }} onChange={handleFileChange} disabled={uploading} />
+            </label>
           </div>
 
           <div className="mfooter">

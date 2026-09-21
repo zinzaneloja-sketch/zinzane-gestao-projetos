@@ -1,7 +1,9 @@
 const express = require("express");
+const fs = require("fs");
 const prisma = require("../lib/prisma");
 const { requireAuth } = require("../middleware/auth");
 const { canAccessDepartment, isDepartmentManager, visibleDepartmentIds } = require("../lib/access");
+const { handleUpload, attachmentFilePath } = require("../lib/uploads");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -144,13 +146,63 @@ router.patch("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+  const task = await prisma.task.findUnique({ where: { id: req.params.id }, include: { attachments: true } });
   if (!task) return res.status(404).json({ error: "Tarefa não encontrada." });
   if (!(await isDepartmentManager(req.user, task.departmentId))) {
     return res.status(403).json({ error: "Só o Gestor do departamento pode excluir tarefas." });
   }
   await prisma.task.delete({ where: { id: req.params.id } });
+  for (const a of task.attachments) fs.unlink(attachmentFilePath(a.storedName), () => {});
   res.status(204).end();
+});
+
+// ── Anexos ──
+// Quem pode ver/enviar: qualquer responsável pela tarefa, ou quem tem
+// acesso ao departamento dela. Combina com a mesma regra usada pra
+// enxergar a tarefa em si.
+async function canAccessTask(user, task) {
+  const isOwner = task.assignees.some((a) => a.userId === user.id);
+  return isOwner || (await canAccessDepartment(user, task.departmentId));
+}
+
+router.post("/:id/attachments", handleUpload("file"), async (req, res) => {
+  const task = await prisma.task.findUnique({ where: { id: req.params.id }, include: { assignees: true } });
+  if (!task) {
+    if (req.file) fs.unlink(attachmentFilePath(req.file.filename), () => {});
+    return res.status(404).json({ error: "Tarefa não encontrada." });
+  }
+  if (!(await canAccessTask(req.user, task))) {
+    if (req.file) fs.unlink(attachmentFilePath(req.file.filename), () => {});
+    return res.status(403).json({ error: "Sem permissão para anexar arquivos nesta tarefa." });
+  }
+  if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+
+  const attachment = await prisma.taskAttachment.create({
+    data: {
+      taskId: task.id,
+      uploadedById: req.user.id,
+      filename: req.file.originalname,
+      storedName: req.file.filename,
+      mimeType: req.file.mimetype,
+      sizeBytes: req.file.size,
+    },
+    include: { uploadedBy: { select: { id: true, name: true } } },
+  });
+  res.status(201).json(attachment);
+});
+
+router.get("/:id/attachments", async (req, res) => {
+  const task = await prisma.task.findUnique({ where: { id: req.params.id }, include: { assignees: true } });
+  if (!task) return res.status(404).json({ error: "Tarefa não encontrada." });
+  if (!(await canAccessTask(req.user, task))) {
+    return res.status(403).json({ error: "Sem permissão para ver os anexos desta tarefa." });
+  }
+  const attachments = await prisma.taskAttachment.findMany({
+    where: { taskId: task.id },
+    include: { uploadedBy: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(attachments);
 });
 
 // ── Apontamento de horas ──

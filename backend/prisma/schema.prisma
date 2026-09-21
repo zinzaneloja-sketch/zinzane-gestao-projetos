@@ -67,6 +67,7 @@ model User {
   responsibleFor  Project[]        @relation("ProjectResponsible")
   tasksAssigned   Task[]           @relation("TaskResponsible")
   taskAssignments TaskAssignee[]
+  attachmentsSent TaskAttachment[]
   salaries        Salary[]
 
   @@map("users")
@@ -129,8 +130,27 @@ model Task {
   updatedAt     DateTime   @updatedAt
 
   timeEntries TaskTimeEntry[]
+  attachments TaskAttachment[]
 
   @@map("tasks")
+}
+
+// Arquivos anexados a uma tarefa — ex.: contrato enviado pelo Jurídico pra
+// validação, revisão devolvida, briefing do Marketing. Ficam guardados em
+// disco (volume persistente do backend); aqui só o metadado.
+model TaskAttachment {
+  id           String   @id @default(uuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  filename     String // nome original do arquivo, mostrado na interface
+  storedName   String // nome do arquivo em disco (gerado, evita colisão/traversal)
+  mimeType     String?
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  @@map("task_attachments")
 }
 
 // Vincula uma ou mais pessoas como responsáveis por uma tarefa. Permite que

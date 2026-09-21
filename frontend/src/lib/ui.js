@@ -53,6 +53,19 @@ export function formatDate(value) {
   return d.toLocaleDateString("pt-BR");
 }
 
+export function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let val = bytes;
+  let i = -1;
+  do {
+    val /= 1024;
+    i++;
+  } while (val >= 1024 && i < units.length - 1);
+  return `${val.toFixed(val < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
 export function isOverdue(value) {
   if (!value) return false;
   const d = new Date(value);
