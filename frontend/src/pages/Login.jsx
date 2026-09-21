@@ -25,30 +25,30 @@ export default function Login() {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleSubmit} style={{ width: 320, display: "flex", flexDirection: "column", gap: 12 }}>
-        <h1 style={{ fontSize: 20, marginBottom: 8 }}>Gestão de Projetos · Zinzane</h1>
-        <input
-          type="email"
-          placeholder="E-mail"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #ddd" }}
-        />
-        <input
-          type="password"
-          placeholder="Senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #ddd" }}
-        />
-        {error && <div style={{ color: "#d33", fontSize: 13 }}>{error}</div>}
-        <button type="submit" disabled={loading} style={{ padding: 10, borderRadius: 8, background: "#0071e3", color: "#fff", border: "none" }}>
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+    <div className="login-page">
+      <div className="login-box">
+        <div className="login-logo">
+          <div className="logo-icon">🧵</div>
+          <h1>Zinzane</h1>
+          <p>Controle de Projetos e Tarefas</p>
+        </div>
+
+        {error && <div className="login-err">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="login-field">
+            <label>E-mail</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </div>
+          <div className="login-field">
+            <label>Senha</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
